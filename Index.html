@@ -174,6 +174,10 @@
         .notification.error {
             background: #ef4444;
         }
+
+        .notification.info {
+            background: #3b82f6; /* Blue for info */
+        }
         
         .loading-spinner {
             border: 3px solid #f3f4f6;
@@ -198,26 +202,34 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
+        /* Sidebar styles for desktop */
         .sidebar {
             background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
             color: white;
             min-height: 100vh;
             padding: 24px;
             box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            position: fixed; /* Keep sidebar fixed on desktop */
+            width: 280px;
+            top: 0;
+            left: 0;
+            z-index: 999; /* Ensure it's above other content on desktop too */
         }
         
+        /* Mobile specific styles */
         .mobile-menu {
-            display: none;
+            display: none; /* Hidden by default, shown on small screens */
         }
         
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
                 top: 0;
-                left: -100%;
+                left: -280px; /* Hidden by default on mobile */
                 width: 280px;
                 z-index: 1000;
                 transition: left 0.3s ease;
+                min-height: 100vh; /* Ensure it covers full height on mobile */
             }
             
             .sidebar.open {
@@ -225,12 +237,43 @@
             }
             
             .mobile-menu {
-                display: block;
+                display: block; /* Show hamburger menu on mobile */
             }
             
             .floating-action {
                 bottom: 1rem;
                 right: 1rem;
+            }
+
+            .md\:ml-80 { /* Override desktop margin for mobile */
+                margin-left: 0;
+            }
+
+            .p-6 { /* Adjust padding for mobile */
+                padding: 1rem;
+            }
+
+            .max-w-4xl { /* Remove max-width on mobile for better space utilization */
+                max-width: 100%;
+            }
+
+            /* Custom scrollbar for mobile */
+            .custom-scrollbar {
+                -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
+            }
+            .custom-scrollbar::-webkit-scrollbar {
+                height: 6px; /* Height of the scrollbar */
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: #f1f1f1; /* Color of the track */
+                border-radius: 10px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: #888; /* Color of the scroll thumb */
+                border-radius: 10px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #555; /* Color of the scroll thumb on hover */
             }
         }
         
@@ -303,9 +346,9 @@
                     <div>
                         <label class="block text-sm mb-1">คุณภาพ</label>
                         <select id="qualitySelect" class="w-full p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                            <option value="high">สูง (ช้า)</option>
-                            <option value="medium">ปานกลาง</option>
-                            <option value="low">ต่ำ (เร็ว)</option>
+                            <option value="high">สูง (แม่นยำสูง, ช้ากว่า)</option>
+                            <option value="medium" selected>ปานกลาง (สมดุล)</option>
+                            <option value="low">ต่ำ (เร็ว, แม่นยำน้อยกว่า)</option>
                         </select>
                     </div>
                     <div class="flex items-center space-x-2">
@@ -743,7 +786,7 @@
         }
         
         function showNotification(message, type) {
-            notification.classList.remove('success', 'error');
+            notification.classList.remove('success', 'error', 'info');
             notification.classList.add(type);
             notificationText.textContent = message;
             notification.classList.add('show');
@@ -765,6 +808,7 @@
         }
         
         function handleResize() {
+            // Close sidebar and hide overlay if window is resized to desktop size
             if (window.innerWidth > 768) {
                 sidebar.classList.remove('open');
                 overlay.classList.remove('show');
@@ -819,263 +863,4 @@
           { w: /หล\s*ั\s*ก/g, c: 'หลัก' },
           { w: /เกี่ยวก\s*ั\s*บ/g, c: 'เกี่ยวกับ' },
           { w: /อ\s*ั\s*งกฤษ/g, c: 'อังกฤษ' },
-          { w: /อ\s*ั\s*ปโหลด/g, c: 'อัปโหลด' },
-          { w: /สําหร\s*ั\s*บทดสอบ/g, c: 'สำหรับทดสอบ' },
-          { w: /จ\s*ั\s*ดทํา/g, c: 'จัดทำ' },
-          { w: /คุณสมบ\s*ั\s*ติ/g, c: 'คุณสมบัติ' },
-          { w: /ผู้ร\s*ั\s*บงาน/g, c: 'ผู้รับงาน' },
-          { w: /งบประมาณ\s*ุเบื่องต้น/g, c: 'งบประมาณเบื้องต้น' },
-          { w: /เริมงาน/g, c: 'เริ่มงาน' },
-          { w: /สือสาร/g, c: 'สื่อสาร' },
-          { w: /รองร\s*ั\s*บ/g, c: 'รองรับ' },
-          { w: /ท\s*ั\s*้ง/g, c: 'ทั้ง' },
-          { w: /เวอร์ชั\s*น/g, c: 'เวอร์ชัน' },
-          { w: /แอปพลิเคชั\s*น/g, c: 'แอปพลิเคชัน' },
-          { w: /สําหร\s*ั\s*บ/g, c: 'สำหรับ' },
-          { w: /ว\s*ั\s*ฒนธรรม/g, c: 'วัฒนธรรม' },
-        ];
-
-        // --- Optimized API Key Hiding Logic (Client-side, minimal performance impact) ---
-        const _apiKeyHandler = (function() {
-            // These fragments are Base64 encoded and the order is shuffled/mixed
-            const _frags = [
-                "WGQ3MHpVTzlqUE5ka0Z4dmVw", // part B
-                "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2Uu", // url part 1
-                "QUl6YVN5QzVIdjRhSnIxSTBV", // part A
-                "M1Nj", // part C
-                "Z29vZ2xlYXBpcy5jb20vdjFiZXRhL21vZGVs", // url part 2
-                "cy9nZW1tYS0zLTRiLWl0OmdlbmVyYXRlQ29udGVudD9rZXk9" // url part 3
-            ];
-
-            // This array defines the order to assemble the key parts
-            // (Indices of _frags to form the API Key)
-            const _keyOrder = [2, 0, 3]; 
-
-            // This array defines the order to assemble the URL parts
-            // (Indices of _frags to form the Base URL)
-            const _urlOrder = [1, 4, 5];
-
-            let _cachedKey = null;
-            let _cachedUrl = null;
-
-            function _decodeBase64(str) {
-                return atob(str);
-            }
-
-            function _assemble(orderArray) {
-                let result = "";
-                for (let i = 0; i < orderArray.length; i++) {
-                    result += _decodeBase64(_frags[orderArray[i]]);
-                }
-                return result;
-            }
-
-            return {
-                // Public method to get the API Key
-                getApiKey: function() {
-                    if (!_cachedKey) {
-                        _cachedKey = _assemble(_keyOrder);
-                    }
-                    return _cachedKey;
-                },
-                // Public method to get the Base URL
-                getBaseUrl: function() {
-                    if (!_cachedUrl) {
-                        _cachedUrl = _assemble(_urlOrder);
-                    }
-                    return _cachedUrl;
-                }
-            };
-        })();
-        // --- End Optimized API Key Hiding Logic ---
-
-        async function processImage(file, pageNum, progressCallback) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const scale = 2; // Upscale factor for better OCR
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.width * scale;
-                        canvas.height = img.height * scale;
-                        const ctx = canvas.getContext('2d');
-                        ctx.imageSmoothingEnabled = true; 
-                        ctx.imageSmoothingQuality = 'high'; 
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        // Apply binarization based on quality setting
-                        let threshold = 180; // Default medium
-                        const quality = qualitySelect.value;
-                        if (quality === 'high') {
-                            threshold = 150; 
-                        } else if (quality === 'low') {
-                            threshold = 200;
-                        }
-
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const data = imageData.data;
-                        for (let i = 0; i < data.length; i += 4) {
-                            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                            const color = avg > threshold ? 255 : 0;
-                            data[i] = color;     
-                            data[i + 1] = color; 
-                            data[i + 2] = color; 
-                        }
-                        ctx.putImageData(imageData, 0, 0);
-
-                        const highResDataUrl = canvas.toDataURL('image/png');
-
-                        Tesseract.recognize(
-                            highResDataUrl,
-                            languageSelect.value, // Use selected language
-                            {
-                                logger: m => {
-                                    if (progressCallback) {
-                                        progressCallback(m);
-                                    }
-                                },
-                                // Tesseract parameters for better Thai OCR
-                                tessedit_char_whitelist: 'กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮะัาิีึืุูเแโใไฤฦๅ็่้๊๋์๏ฯํ๎abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789๐๑๒๓๔๕๖๗๙-\'":;,?!@#$%^&*()+×÷=/_€£¥฿.☆▪︎¤《》¡¿°•○●□■♤♡◇♧`~\\|<>{}[]', 
-                                preserve_interword_spaces: '1', 
-                                user_defined_dpi: '300', 
-                            }
-                        ).then(({ data }) => { 
-                            resolve(data.text); 
-                        }).catch(err => {
-                            console.error("Tesseract OCR Error:", err);
-                            reject(`[ไม่สามารถแปลงหน้า ${pageNum} ได้]`);
-                        });
-                    };
-                    img.onerror = () => reject(`[โหลดภาพหน้า ${pageNum} ไม่ได้]`);
-                    img.src = e.target.result;
-                };
-                reader.onerror = () => reject(`[อ่านไฟล์หน้า ${pageNum} ไม่ได้]`);
-                reader.readAsDataURL(file);
-            });
-        }
-
-        function postProcessFix(text) {
-            let fixedText = text;
-
-            const diacriticPattern = '[\u0E30-\u0E3A\u0E47-\u0E4E]';
-            fixedText = fixedText.replace(new RegExp(`([\u0E01-\u0E2E])\\s+(${diacriticPattern})`, 'g'), '$1$2');
-
-            // Remove spaces between Thai/English characters and numbers if they are clearly part of a word
-            const charPattern = '[ก-ฮะาิีึืุูเแโใไฤฦๅ็่้๊๋์๏ฯํ๎ฺA-Za-z0-9]'; 
-            const regexRemoveInternalSpaces = new RegExp(`(?<=${charPattern})\\s(?=${charPattern})`, 'g');
-            fixedText = fixedText.replace(regexRemoveInternalSpaces, '');
-
-            for (const map of correctionMap) {
-                fixedText = fixedText.replace(map.w, map.c);
-            }
-
-            // Standardize multiple spaces to single space
-            fixedText = fixedText.replace(/ +/g, ' '); 
-            // Remove leading/trailing spaces on lines
-            fixedText = fixedText.replace(/(^ |\n )|( $)/gm, '$2'); 
-
-            // Specific line break and spacing corrections for the provided text examples
-            fixedText = fixedText.replace(/(\d+)\s*นาเสนองานแล้ว(\d+)คน\s*บรีฟงาน/g, '$1 นำเสนองานแล้ว $2 คน บรีฟงาน'); 
-            fixedText = fixedText.replace(/ขอบเขตงาน\s*\((Scope of Work)\)\s*»\s*ออกแบบและพัฒนา\s*(\d-\d)หน้าจอ/g, 'ขอบเขตงาน ($1) » ออกแบบและพัฒนา $2 หน้าจอ');
-            fixedText = fixedText.replace(/\)\s*\.\s*แสดงเนื้อหาประเภทข้อความ\s*\/\s*วิดีโอ\s*\/\s*เสียง/g, ')\n. แสดงเนื้อหาประเภทข้อความ / วิดีโอ / เสียง'); 
-            fixedText = fixedText.replace(/\)\s*\.\s*มีหน้าเมนูหลัก/g, ')\n. มีหน้าเมนูหลัก'); 
-            fixedText = fixedText.replace(/โครงการ\s*»\s*รองรับระบบสองภาษา/g, 'โครงการ » รองรับระบบสองภาษา');
-            fixedText = fixedText.replace(/อัปโหลดขึ้นGooglePlay\s*\/\s*TestFlight/g, 'อัปโหลดขึ้น Google Play / TestFlight'); 
-            fixedText = fixedText.replace(/หรือส่งไฟล์APK\/IPAสําหร\s*ั\s*บทดสอบ\)\s*-\s*จ\s*ั\s*ดทําเอกสารอธิบายโค้ดหรือREADMEพื้นฐาน/g, 'หรือส่งไฟล์ APK/IPA สำหรับทดสอบ)\n- จัดทำเอกสารอธิบายโค้ดหรือ README พื้นฐาน'); 
-            fixedText = fixedText.replace(/คุณสมบัติผู้รับงาน\s*\.\s*มีประสบการณ์ใช้Flutterพัฒนาแอปจริง/g, 'คุณสมบัติผู้รับงาน\n. มีประสบการณ์ใช้ Flutter พัฒนาแอปจริง'); 
-            fixedText = fixedText.replace(/ตัวอย่างผลงาน\s*\.\s*ทำงานรวดเร็ว/g, 'ตัวอย่างผลงาน\n. ทำงานรวดเร็ว'); 
-            fixedText = fixedText.replace(/สือสาร\s*\.\s*งบประมาณเบื้องต้น/g, 'สื่อสาร\n. งบประมาณเบื้องต้น'); 
-            fixedText = fixedText.replace(/บาท\s*ระยะเวลาดําเนินการ/g, 'บาท\nระยะเวลาดำเนินการ'); 
-            fixedText = fixedText.replace(/ทันที\s*\)\s*นำเสนองานแชร์งาน/g, 'ทันที)\nนำเสนองาน แชร์งาน'); 
-
-            // Specific formatting for the provided "job post" type text
-            fixedText = fixedText.replace(/เปิดรับ\s*ฉันหา/g, 'เปิดรับ\n\nฉันหา');
-            fixedText = fixedText.replace(/TINKERCAD\s*!!\s*(\d+)/g, 'TINKERCAD !!\n\n$1'); 
-            fixedText = fixedText.replace(/ชั่วโมงที่แล้ว\s*รายละเอียดงาน/g, 'ชั่วโมงที่แล้ว\n\nรายละเอียดงาน'); 
-            fixedText = fixedText.replace(/รายละเอียดงาน\s*\$150/g, 'รายละเอียดงาน\n\n$150');
-            fixedText = fixedText.replace(/ฟรีแลนซ์\s*นำเสนองานแล้ว/g, 'ฟรีแลนซ์\n\nนำเสนองานแล้ว'); 
-            fixedText = fixedText.replace(/นำเสนองานแล้ว\s*(\d+)\s*คนบรีฟงาน/g, 'นำเสนองานแล้ว\n\n$1 คน\n\nบรีฟงาน');
-            fixedText = fixedText.replace(/ก็ต่อเมื่อเซนเซอร์/g, 'ก็ต่อเมื่อ\n\nเซนเซอร์');
-            fixedText = fixedText.replace(/เซนเซอร์ตรวจจับน้ำฝนหรือสภาพอากาศและจะมีปั๊มน้ำดูดน้ำขึ้นไปบนสปิงเกอร์เพื่อพ่นออกมาเป็นละอองเพื่อที่รถเข็นไม่ร้อนเกินไป/g, 'เซนเซอร์ตรวจจับน้ำฝนหรือสภาพ\n\nอากาศและจะมีปั๊มน้ำดูดน้ำขึ้นไปบนสปิงเกอร์เพื่อพ่นออกมา เป็น\n\nละอองเพื่อที่รถเข็นไม่ร้อนเกินไป'); 
-            fixedText = fixedText.replace(/\(รถเข็นขายของที่มีระบบอัตโนมัตตามข้างบน\)\s*!!ขอก่อนวันจันทร์!!/g, '(รถเข็นขายของที่มีระบบอัตโนมัตตามข้างบน)\n\n!!ขอก่อนวันจันทร์!!'); 
-            fixedText = fixedText.replace(/วันจันทร์!!\s*ตัวอย่างผลงานที่ต้องการ/g, 'วันจันทร์!!\n\nตัวอย่างผลงานที่ต้องการ'); 
-            fixedText = fixedText.replace(/ที่ต้องการ\s*วันส่งมอบงาน/g, 'ที่ต้องการ\n\nวันส่งมอบงาน');
-            fixedText = fixedText.replace(/(\d{2}\/\d{2}\/\d{4})\s*นำเสนองาน/g, '$1\n\nนำเสนองาน'); 
-            fixedText = fixedText.replace(/นำเสนองาน\s*แชร์งาน/g, 'นำเสนองาน\n\nแชร์งาน');
-
-            return fixedText.trim();
-        }
-
-        async function refineTextWithAI(text) {
-            let chatHistory = [];
-            let prompt = "";
-            const quality = qualitySelect.value;
-
-            switch (quality) {
-                case 'high':
-                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) ซึ่งอาจมีข้อผิดพลาดด้านการสะกด ไวยากรณ์ หรือการเว้นวรรค โปรดแก้ไขข้อความนี้ให้ถูกต้องตามหลักภาษาไทยและภาษาอังกฤษ (หากมี) ปรับปรุงให้เป็นธรรมชาติและอ่านง่ายขึ้นมากที่สุด โดยคงความหมายเดิมไว้ และแก้ไขข้อผิดพลาดที่เกิดจากการแปลง OCR เช่น คำที่เว้นวรรคผิด หรือตัวอักษรที่ผิดเพี้ยนเล็กน้อย ให้สมบูรณ์แบบมากที่สุด ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
-                    break;
-                case 'medium':
-                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) ซึ่งอาจมีข้อผิดพลาดด้านการสะกด ไวยากรณ์ หรือการเว้นวรรค โปรดแก้ไขข้อความนี้ให้ถูกต้องตามหลักภาษาไทยและภาษาอังกฤษ (หากมี) ปรับปรุงให้เป็นธรรมชาติและอ่านง่ายขึ้น โดยคงความหมายเดิมไว้ และแก้ไขข้อผิดพลาดที่เกิดจากการแปลง OCR เช่น คำที่เว้นวรรคผิด หรือตัวอักษรที่ผิดเพี้ยนเล็กน้อย ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
-                    break;
-                case 'low':
-                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) โปรดแก้ไขข้อผิดพลาดที่ชัดเจนด้านการสะกดหรือการเว้นวรรค โดยไม่ต้องปรับปรุงรูปแบบประโยคหรือไวยากรณ์มากนัก เน้นความถูกต้องของคำเป็นหลัก ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
-                    break;
-                default:
-                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) ซึ่งอาจมีข้อผิดพลาดด้านการสะกด ไวยากรณ์ หรือการเว้นวรรค โปรดแก้ไขข้อความนี้ให้ถูกต้องตามหลักภาษาไทยและภาษาอังกฤษ (หากมี) ปรับปรุงให้เป็นธรรมชาติและอ่านง่ายขึ้น โดยคงความหมายเดิมไว้ และแก้ไขข้อผิดพลาดที่เกิดจากการแปลง OCR เช่น คำที่เว้นวรรคผิด หรือตัวอักษรที่ผิดเพี้ยนเล็กน้อย ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
-            }
-
-            if (!aiEnhanceCheckbox.checked) {
-                return text; // Skip AI enhancement if checkbox is unchecked
-            }
-            
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            const payload = { contents: chatHistory };
-            
-            const apiKey = _apiKeyHandler.getApiKey(); 
-            const baseUrl = _apiKeyHandler.getBaseUrl();
-            const apiUrl = `${baseUrl}${apiKey}`; 
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const responseJson = await response.json(); 
-
-                if (response.status === 429) {
-                    showNotification('จำนวนการใช้งาน AI เกินขีดจำกัด (30 ครั้ง/นาที หรือ 15000 token/นาที) โปรดลองใหม่อีกครั้ง', 'error');
-                    return text; // Return original text if rate limited
-                }
-
-                if (responseJson.error && responseJson.error.message) {
-                    if (responseJson.error.message.includes('quota') || responseJson.error.message.includes('rate limit') || responseJson.error.message.includes('resource exhausted')) {
-                        showNotification('จำนวนการใช้งาน AI เกินขีดจำกัด (โควต้าหรือ Rate Limit เกิน) โปรดลองใหม่อีกครั้ง', 'error');
-                        return text;
-                    }
-                    console.error("AI API Error:", responseJson.error.message);
-                    showNotification(`AI ไม่สามารถปรับปรุงข้อความได้: ${responseJson.error.message}`, 'error');
-                    return text;
-                }
-            
-                if (responseJson.candidates && responseJson.candidates.length > 0 &&
-                    responseJson.candidates[0].content && responseJson.candidates[0].content.parts &&
-                    responseJson.candidates[0].content.parts.length > 0) {
-                    const refinedText = responseJson.candidates[0].content.parts[0].text;
-                    return refinedText;
-                } else {
-                    console.error("AI response structure unexpected or content missing:", responseJson);
-                    showNotification('AI ไม่สามารถปรับปรุงข้อความได้บางส่วน (โครงสร้างผลลัพธ์ไม่ถูกต้อง)', 'error');
-                    return text;
-                }
-            } catch (error) {
-                console.error("Error calling Gemini API:", error);
-                showNotification('เกิดข้อผิดพลาดในการเชื่อมต่อ AI (โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต)', 'error');
-                return text;
-            }
-        }
-    </script>
-</body>
-</html>
+          { w:
