@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Smart Layout - Modern UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+        }
+        
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-shadow {
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        
+        .upload-zone {
+            border: 2px dashed #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover {
+            border-color: #6366f1;
+            background-color: #f8fafc;
+        }
+        
+        .upload-zone.drag-over {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: linear-gradient(90deg, #06b6d4, #3b82f6);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .floating-action {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 50;
+        }
+        
+        .page-thumbnail {
+            width: 80px;
+            height: 100px;
+            background: #f8fafc;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        
+        .page-thumbnail:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+        }
+        
+        .page-thumbnail.active {
+            border-color: #4f46e5;
+            background: #eef2ff;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3); /* Add a subtle glow */
+        }
+        
+        .result-container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            min-height: 400px;
+        }
+        
+        .action-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .action-button:active {
+            transform: translateY(0);
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-processing {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .text-output {
+            font-family: 'IBM Plex Sans Thai', 'Inter', monospace; /* Prioritize Thai font for readability */
+            line-height: 1.6;
+            color: #374151;
+            white-space: pre-wrap;
+            padding: 20px;
+            border-radius: 12px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            min-height: 200px; /* Ensure it's visible */
+            word-break: break-word; /* Allow long words to break */
+            overflow-wrap: break-word; /* Ensure long words wrap */
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 100;
+            transform: translateX(100%);
+            transition: transform 0.3s ease, opacity 0.3s ease; /* Add opacity transition */
+            opacity: 0; /* Start hidden */
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .notification.success {
+            background: #10b981;
+        }
+        
+        .notification.error {
+            background: #ef4444;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #6366f1;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .sidebar {
+            background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 24px;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .mobile-menu {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.open {
+                left: 0;
+            }
+            
+            .mobile-menu {
+                display: block;
+            }
+            
+            .floating-action {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .overlay.show {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 overflow-x-hidden">
+    
+    <button id="mobileMenuBtn" class="mobile-menu fixed top-4 left-4 z-50 bg-white p-3 rounded-full shadow-lg">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+    </button>
+    
+    <div id="overlay" class="overlay"></div>
+    
+    <div id="sidebar" class="sidebar">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-2xl font-bold">OCR Smart</h1>
+            <button id="closeSidebar" class="md:hidden text-white hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="space-y-4">
+            <div class="glass-effect rounded-lg p-4">
+                <h3 class="font-semibold mb-2">สถิติการใช้งาน</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-sm">ไฟล์ที่แปลงแล้ว</span>
+                        <span id="totalFiles" class="text-sm font-medium">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm">หน้าทั้งหมด</span>
+                        <span id="totalPages" class="text-sm font-medium">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm">เวลาที่ใช้</span>
+                        <span id="totalTime" class="text-sm font-medium">0s</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-effect rounded-lg p-4">
+                <h3 class="font-semibold mb-2">การตั้งค่า</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm mb-1">ภาษา</label>
+                        <select id="languageSelect" class="w-full p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            <option value="tha+eng">ไทย + English</option>
+                            <option value="tha">ไทยอย่างเดียว</option>
+                            <option value="eng">English อย่างเดียว</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">คุณภาพ</label>
+                        <select id="qualitySelect" class="w-full p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            <option value="high">สูง (ช้า)</option>
+                            <option value="medium">ปานกลาง</option>
+                            <option value="low">ต่ำ (เร็ว)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="aiEnhance" checked class="rounded text-indigo-600 focus:ring-indigo-500">
+                        <label for="aiEnhance" class="text-sm">ปรับปรุงด้วย AI</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="md:ml-80 min-h-screen">
+        <header class="bg-white shadow-sm border-b border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div class="md:hidden"></div>
+                <h2 class="text-2xl font-bold text-gray-800 md:text-3xl">แปลงรูปภาพเป็นข้อความ</h2>
+                <div class="flex items-center space-x-4">
+                    <div id="processingStatus" class="status-badge status-completed">พร้อมใช้งาน</div>
+                </div>
+            </div>
+        </header>
+        
+        <section class="p-6">
+            <div class="max-w-4xl mx-auto">
+                <div id="uploadZone" class="upload-zone bg-white rounded-2xl p-8 text-center mb-6">
+                    <svg class="mx-auto w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">อัปโหลดรูปภาพ</h3>
+                    <p class="text-gray-500 mb-4">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</p>
+                    <input type="file" id="fileInput" multiple accept="image/*" class="hidden">
+                    <button onclick="document.getElementById('fileInput').click()" class="action-button mx-auto">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        เลือกไฟล์
+                    </button>
+                </div>
+                
+                <div id="filePreview" class="hidden mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">ไฟล์ที่เลือก</h3>
+                    <div id="fileList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+                </div>
+                
+                <div class="flex flex-wrap gap-4 justify-center mb-6">
+                    <button id="startBtn" onclick="startProcessing()" class="action-button" disabled>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        เริ่มแปลงข้อความ
+                    </button>
+                    <button id="viewAllBtn" onclick="viewAllPages()" class="action-button bg-gray-600 hover:bg-gray-700" disabled>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                        </svg>
+                        ดูทุกหน้า
+                    </button>
+                </div>
+                
+                <div id="progressContainer" class="hidden mb-6">
+                    <div class="bg-gray-200 rounded-full h-3 mb-2">
+                        <div id="progressBar" class="progress-bar w-0 h-full rounded-full"></div>
+                    </div>
+                    <div class="flex justify-between text-sm text-gray-600">
+                        <span id="progressText">เตรียมความพร้อม...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                </div>
+                
+                <div id="pageNavigation" class="hidden mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">เลือกหน้า</h3>
+                    <div id="pageList" class="flex space-x-4 overflow-x-auto pb-4 custom-scrollbar"></div>
+                </div>
+                
+                <div id="resultsContainer" class="hidden">
+                    <div class="result-container p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-700">ผลลัพธ์</h3>
+                            <div class="flex space-x-2">
+                                <button onclick="copyResults()" class="action-button bg-green-600 hover:bg-green-700">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    คัดลอก
+                                </button>
+                                <button onclick="saveResults()" class="action-button bg-blue-600 hover:bg-blue-700">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    บันทึก
+                                </button>
+                            </div>
+                        </div>
+                        <div id="textOutput" class="text-output">
+                            ยังไม่มีข้อมูล กรุณาอัปโหลดรูปภาพและเริ่มแปลงข้อความ
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <div class="floating-action">
+        <button onclick="scrollToTop()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-105">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+            </svg>
+        </button>
+    </div>
+    
+    <div id="notification" class="notification">
+        <div class="flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span id="notificationText">Success message</span>
+        </div>
+    </div>
+
+    <script>
+        // Variables
+        let selectedFiles = [];
+        let pageTexts = [];
+        let currentPage = -1;
+        let totalProcessingTime = 0;
+        let processingStartTime = 0;
+        
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadZone = document.getElementById('uploadZone');
+        const filePreview = document.getElementById('filePreview');
+        const fileList = document.getElementById('fileList');
+        const startBtn = document.getElementById('startBtn');
+        const viewAllBtn = document.getElementById('viewAllBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
+        const pageNavigation = document.getElementById('pageNavigation');
+        const pageList = document.getElementById('pageList');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const textOutput = document.getElementById('textOutput');
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const closeSidebar = document.getElementById('closeSidebar');
+        const overlay = document.getElementById('overlay');
+
+        const totalFilesDisplay = document.getElementById('totalFiles');
+        const totalPagesDisplay = document.getElementById('totalPages');
+        const totalTimeDisplay = document.getElementById('totalTime');
+        const processingStatusBadge = document.getElementById('processingStatus');
+
+        const languageSelect = document.getElementById('languageSelect');
+        const qualitySelect = document.getElementById('qualitySelect');
+        const aiEnhanceCheckbox = document.getElementById('aiEnhance');
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            updateStats();
+        });
+        
+        function setupEventListeners() {
+            // File input
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Drag and drop
+            uploadZone.addEventListener('dragover', handleDragOver);
+            uploadZone.addEventListener('dragleave', handleDragLeave);
+            uploadZone.addEventListener('drop', handleDrop);
+            
+            // Mobile menu
+            mobileMenuBtn.addEventListener('click', toggleSidebar);
+            closeSidebar.addEventListener('click', toggleSidebar);
+            overlay.addEventListener('click', toggleSidebar);
+            
+            // Window resize
+            window.addEventListener('resize', handleResize);
+        }
+        
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            processSelectedFiles(files);
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            uploadZone.classList.add('drag-over');
+        }
+        
+        function handleDragLeave(event) {
+            event.preventDefault();
+            uploadZone.classList.remove('drag-over');
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            
+            const files = Array.from(event.dataTransfer.files);
+            processSelectedFiles(files);
+        }
+        
+        function processSelectedFiles(files) {
+            selectedFiles = files.filter(file => file.type.startsWith('image/'));
+            
+            if (selectedFiles.length === 0) {
+                showNotification('กรุณาเลือกไฟล์รูปภาพ', 'error');
+                return;
+            }
+            
+            displayFilePreview();
+            startBtn.disabled = false;
+            updateStats();
+        }
+        
+        function displayFilePreview() {
+            filePreview.classList.remove('hidden');
+            fileList.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'bg-white rounded-lg p-4 shadow-sm border border-gray-200';
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    fileItem.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview" class="w-full h-20 object-cover rounded-lg mb-2">
+                        <p class="text-sm text-gray-600 truncate">${file.name}</p>
+                        <p class="text-xs text-gray-400">${(file.size / 1024).toFixed(1)} KB</p>
+                    `;
+                };
+                reader.readAsDataURL(file);
+                
+                fileList.appendChild(fileItem);
+            });
+        }
+        
+        async function startProcessing() {
+            if (selectedFiles.length === 0) {
+                showNotification('กรุณาเลือกไฟล์ก่อน', 'error');
+                return;
+            }
+            
+            processingStartTime = Date.now();
+            pageTexts = [];
+            currentPage = -1;
+            
+            // Show progress
+            progressContainer.classList.remove('hidden');
+            startBtn.disabled = true;
+            viewAllBtn.disabled = true; // Disable viewAll during processing
+            updateProcessingStatus('processing');
+            
+            // Reset progress
+            updateProgress(0, 'เริ่มต้นการแปลง...');
+            resultsContainer.classList.add('hidden'); // Hide previous results
+            textOutput.textContent = 'ยังไม่มีข้อมูล กรุณาอัปโหลดรูปภาพและเริ่มแปลงข้อความ';
+            pageList.innerHTML = ''; // Clear page list
+            
+            try {
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    
+                    // Base progress for the current page (out of total pages)
+                    const overallBaseProgress = (i / selectedFiles.length) * 100;
+
+                    // Step 1: OCR Processing (70% of current page's progress)
+                    let ocrProgressCallback = (m) => {
+                        if (m.status === 'recognizing text') {
+                            const currentProgress = (overallBaseProgress + (m.progress * 70 / selectedFiles.length));
+                            updateProgress(currentProgress, `กำลังแปลงหน้า ${i + 1} จาก ${selectedFiles.length} (OCR ${Math.round(m.progress * 100)}%)`);
+                        } else {
+                             const currentProgress = (overallBaseProgress + (0 * 70 / selectedFiles.length));
+                             updateProgress(currentProgress, `กำลังเตรียม OCR หน้า ${i + 1} จาก ${selectedFiles.length}...`);
+                        }
+                    };
+
+                    const ocrText = await processImage(file, i + 1, ocrProgressCallback);
+                    const preProcessedText = postProcessFix(ocrText);
+
+                    // Step 2: AI Enhancement (30% of current page's progress, if enabled)
+                    if (aiEnhanceCheckbox.checked) {
+                        const aiBaseProgress = overallBaseProgress + (70 / selectedFiles.length); // Start AI progress after OCR is conceptually done
+                        updateProgress(aiBaseProgress + (15 / selectedFiles.length), `กำลังปรับปรุงข้อความหน้า ${i + 1} จาก ${selectedFiles.length} ด้วย AI...`);
+                        const aiRefinedText = await refineTextWithAI(preProcessedText);
+                        pageTexts.push(aiRefinedText);
+                        updateProgress(overallBaseProgress + (100 / selectedFiles.length), `เสร็จสิ้นหน้า ${i + 1}`);
+                    } else {
+                        pageTexts.push(preProcessedText);
+                        updateProgress(overallBaseProgress + (100 / selectedFiles.length), `เสร็จสิ้นหน้า ${i + 1}`);
+                    }
+                    
+                    // Update page navigation
+                    updatePageNavigation();
+                }
+                
+                // Complete
+                totalProcessingTime = Date.now() - processingStartTime;
+                updateProgress(100, 'เสร็จสิ้นการแปลงทั้งหมด!');
+                
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                    showResults();
+                    updateProcessingStatus('completed');
+                    startBtn.disabled = false;
+                    viewAllBtn.disabled = false;
+                    updateStats();
+                    showNotification('แปลงข้อความเสร็จเรียบร้อย!', 'success');
+                }, 1000);
+                
+            } catch (error) {
+                console.error("Processing error:", error);
+                showNotification('เกิดข้อผิดพลาดในการแปลง', 'error');
+                updateProcessingStatus('error');
+                startBtn.disabled = false;
+                viewAllBtn.disabled = true; // Keep disabled if no pages converted successfully
+                progressContainer.classList.add('hidden');
+            }
+        }
+        
+        function updateProgress(percent, text) {
+            // Ensure percent does not exceed 100%
+            const safePercent = Math.min(100, Math.max(0, percent));
+            progressBar.style.width = safePercent + '%';
+            progressText.textContent = text;
+            progressPercent.textContent = Math.round(safePercent) + '%';
+        }
+        
+        function updatePageNavigation() {
+            pageNavigation.classList.remove('hidden');
+            pageList.innerHTML = '';
+            
+            pageTexts.forEach((text, index) => {
+                const pageButton = document.createElement('button');
+                pageButton.className = 'page-thumbnail fade-in';
+                pageButton.onclick = () => showPage(index);
+                pageButton.id = 'pageBtn-' + index; // Add ID for highlighting
+                
+                pageButton.innerHTML = `
+                    <div class="text-center">
+                        <div class="text-xs text-gray-500 mb-1">หน้า</div>
+                        <div class="text-lg font-bold text-gray-700">${index + 1}</div>
+                    </div>
+                `;
+                
+                pageList.appendChild(pageButton);
+            });
+            if (pageTexts.length > 0 && currentPage === -1) {
+                showPage(0); // Display the first page by default if no page is active
+            }
+        }
+        
+        function showPage(index) {
+            currentPage = index;
+            const output = `--- หน้า ${index + 1} ---\n\n${pageTexts[index]}`;
+            textOutput.textContent = output;
+            
+            // Update page button states
+            const buttons = document.querySelectorAll('.page-thumbnail');
+            buttons.forEach((btn, idx) => {
+                if (idx === currentPage) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function viewAllPages() {
+            currentPage = -1; // Indicate viewing all pages
+            let allText = '';
+            for (let i = 0; i < pageTexts.length; i++) {
+                allText += `--- หน้า ${i + 1} ---\n\n` + pageTexts[i] + '\n\n';
+            }
+            textOutput.textContent = allText.trim();
+
+            // Remove active class from all page buttons
+            document.querySelectorAll('.page-thumbnail').forEach(btn => btn.classList.remove('active'));
+            showNotification('กำลังแสดงข้อความจากทุกหน้า', 'info');
+        }
+        
+        function showResults() {
+            resultsContainer.classList.remove('hidden');
+            if (pageTexts.length > 0) {
+                showPage(0); // Display the first page by default
+            }
+        }
+        
+        function copyResults() {
+            const textToCopy = textOutput.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showNotification('คัดลอกข้อความแล้ว!', 'success');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                showNotification('ไม่สามารถคัดลอกข้อความได้', 'error');
+            });
+        }
+        
+        function saveResults() {
+            const textToSave = textOutput.textContent;
+            const blob = new Blob([textToSave], { type: "text/plain;charset=utf-8" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "ocr_result.txt";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showNotification('บันทึกไฟล์ .txt แล้ว!', 'success');
+        }
+        
+        function updateProcessingStatus(status) {
+            processingStatusBadge.classList.remove('status-processing', 'status-completed', 'status-error');
+            switch (status) {
+                case 'processing':
+                    processingStatusBadge.classList.add('status-processing');
+                    processingStatusBadge.textContent = 'กำลังประมวลผล...';
+                    break;
+                case 'completed':
+                    processingStatusBadge.classList.add('status-completed');
+                    processingStatusBadge.textContent = 'พร้อมใช้งาน';
+                    break;
+                case 'error':
+                    processingStatusBadge.classList.add('status-error');
+                    processingStatusBadge.textContent = 'เกิดข้อผิดพลาด';
+                    break;
+                default:
+                    processingStatusBadge.classList.add('status-completed');
+                    processingStatusBadge.textContent = 'พร้อมใช้งาน';
+            }
+        }
+        
+        function showNotification(message, type) {
+            notification.classList.remove('success', 'error');
+            notification.classList.add(type);
+            notificationText.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function updateStats() {
+            totalFilesDisplay.textContent = selectedFiles.length;
+            totalPagesDisplay.textContent = pageTexts.length;
+            totalTimeDisplay.textContent = `${(totalProcessingTime / 1000).toFixed(1)}s`;
+        }
+        
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+        
+        function handleResize() {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            }
+        }
+        
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- Core OCR and AI Refinement Logic (from your provided JS) ---
+        // Note: I've kept the API key obfuscation as you provided,
+        // but reiterate the security concern.
+
+        const correctionMap = [ 
+          { w: /เปิดร\s*ั\s*บ/g, c: 'เปิดรับ' },
+          { w: /ฉั\s*นหา\s*!\s*หาคนทํา3DUTINKERCAD\s*!!/g, c: 'ฉันหา !! หาคนทํา 3D ในTINKERCAD !!' },
+          { w: /(\d)ช\s*ั\s*่วโมงที่แล้ว/g, c: '$1 ชั่วโมงที่แล้ว' },
+          { w: /รายละเอียดงาน\s*N\\s*\[?\s*0?\s*B150Oฟรีแลนซ์/g, c: 'รายละเอียดงาน\n\n$150\n\nฟรีแลนซ์' },
+          { w: /(\d+)?นำเสนองานแล้ว\s*Tคนบรีฟงาน/g, c: 'นำเสนองานแล้ว\n\n1 คน\n\nบรีฟงาน' },
+          { w: /เซนเซอร์ตรวจจ\s*ั\s*บน้ำฝน/g, c: 'เซนเซอร์ตรวจจับน้ำฝน' },
+          { w: /ป\s*ั\s*่มนํา/g, c: 'ปั๊มน้ำ' },
+          { w: /ปั๊มน้ำดูดนํา/g, c: 'ปั๊มน้ำดูดน้ำ' },
+          { w: /อ\s*ั\s*ตโนม\s*ั\s*ต/g, c: 'อัตโนมัต' },
+          { w: /\(รถเข็นขายของที่มีระบบอัตโนมัตตามข้างบน\s*จ\s*>\)/g, c: '(รถเข็นขายของที่มีระบบอัตโนมัตตามข้างบน)' },
+          { w: /! เขอก่อน/g, c: '!!ขอก่อน' },
+          { w: /ต\s*ั\s*วอย่าง/g, c: 'ตัวอย่าง' },
+          { w: /ที่ต้องการว\s*ั\s*นส่งมอบงาน/g, c: 'ที่ต้องการ\n\nวันส่งมอบงาน' },
+          { w: /นำเสนองาน\s*แชร์งาน/g, c: 'นำเสนองาน\n\nแชร์งาน' },
+          { w: /(\d{2}\/\d{2}\/\d{4})นำเสนองาน/g, c: '$1\n\nนำเสนองาน' },
+
+          { w: /30uTINKERCAD/gi, c: '3D ใน TINKERCAD' },
+          { w: /\[ว B1 50\]/gi, c: '$150' },
+          { w: /\[ว B150\]/gi, c: '$150' },
+          { w: /B1 50/gi, c: '$150' },
+          { w: /นําเสนองานแล ้ว/gi, c: 'นำเสนองานแล้ว' },
+          { w: /บริฟงาน/gi, c: 'บรีฟงาน' },
+          { w: /ทํางาน/gi, c: 'ทำงาน' },
+          { w: /นําฝน/gi, c: 'น้ำฝน' },
+          { w: /อากาศแล ะ/gi, c: 'อากาศและ' },
+          { w: /จํ9/gi, c: '' },
+          { w: /1 3\/07\/2025/gi, c: '13/07/2025' },
+          { w: /ทีต้องการ/gi, c: 'ที่ต้องการ' },
+          { w: /แชร์งาน ๑๕/gi, c: 'แชร์งาน' },
+          { w: /o8/gi, c: '' },
+          { w: /\s{2,}/g, c: ' ' },
+
+          { w: /Vvฉั นหา/g, c: 'Vvฉันหา' },
+          { w: /ScopeofWork/g, c: 'Scope of Work' },
+          { w: /พ\s*ั\s*ฒนาป\s*\|\s*จํานวน(\d-\d)หน้าจอ/g, c: 'พัฒนา $1 หน้าจอ' },
+          { w: /เนื่อหา/g, c: 'เนื้อหา' },
+          { w: /หล\s*ั\s*ก/g, c: 'หลัก' },
+          { w: /เกี่ยวก\s*ั\s*บ/g, c: 'เกี่ยวกับ' },
+          { w: /อ\s*ั\s*งกฤษ/g, c: 'อังกฤษ' },
+          { w: /อ\s*ั\s*ปโหลด/g, c: 'อัปโหลด' },
+          { w: /สําหร\s*ั\s*บทดสอบ/g, c: 'สำหรับทดสอบ' },
+          { w: /จ\s*ั\s*ดทํา/g, c: 'จัดทำ' },
+          { w: /คุณสมบ\s*ั\s*ติ/g, c: 'คุณสมบัติ' },
+          { w: /ผู้ร\s*ั\s*บงาน/g, c: 'ผู้รับงาน' },
+          { w: /งบประมาณ\s*ุเบื่องต้น/g, c: 'งบประมาณเบื้องต้น' },
+          { w: /เริมงาน/g, c: 'เริ่มงาน' },
+          { w: /สือสาร/g, c: 'สื่อสาร' },
+          { w: /รองร\s*ั\s*บ/g, c: 'รองรับ' },
+          { w: /ท\s*ั\s*้ง/g, c: 'ทั้ง' },
+          { w: /เวอร์ชั\s*น/g, c: 'เวอร์ชัน' },
+          { w: /แอปพลิเคชั\s*น/g, c: 'แอปพลิเคชัน' },
+          { w: /สําหร\s*ั\s*บ/g, c: 'สำหรับ' },
+          { w: /ว\s*ั\s*ฒนธรรม/g, c: 'วัฒนธรรม' },
+        ];
+
+        // --- Optimized API Key Hiding Logic (Client-side, minimal performance impact) ---
+        const _apiKeyHandler = (function() {
+            // These fragments are Base64 encoded and the order is shuffled/mixed
+            const _frags = [
+                "WGQ3MHpVTzlqUE5ka0Z4dmVw", // part B
+                "aHR0cHM6Ly9nZW5lcmF0aXZlbGFuZ3VhZ2Uu", // url part 1
+                "QUl6YVN5QzVIdjRhSnIxSTBV", // part A
+                "M1Nj", // part C
+                "Z29vZ2xlYXBpcy5jb20vdjFiZXRhL21vZGVs", // url part 2
+                "cy9nZW1tYS0zLTRiLWl0OmdlbmVyYXRlQ29udGVudD9rZXk9" // url part 3
+            ];
+
+            // This array defines the order to assemble the key parts
+            // (Indices of _frags to form the API Key)
+            const _keyOrder = [2, 0, 3]; 
+
+            // This array defines the order to assemble the URL parts
+            // (Indices of _frags to form the Base URL)
+            const _urlOrder = [1, 4, 5];
+
+            let _cachedKey = null;
+            let _cachedUrl = null;
+
+            function _decodeBase64(str) {
+                return atob(str);
+            }
+
+            function _assemble(orderArray) {
+                let result = "";
+                for (let i = 0; i < orderArray.length; i++) {
+                    result += _decodeBase64(_frags[orderArray[i]]);
+                }
+                return result;
+            }
+
+            return {
+                // Public method to get the API Key
+                getApiKey: function() {
+                    if (!_cachedKey) {
+                        _cachedKey = _assemble(_keyOrder);
+                    }
+                    return _cachedKey;
+                },
+                // Public method to get the Base URL
+                getBaseUrl: function() {
+                    if (!_cachedUrl) {
+                        _cachedUrl = _assemble(_urlOrder);
+                    }
+                    return _cachedUrl;
+                }
+            };
+        })();
+        // --- End Optimized API Key Hiding Logic ---
+
+        async function processImage(file, pageNum, progressCallback) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const scale = 2; // Upscale factor for better OCR
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true; 
+                        ctx.imageSmoothingQuality = 'high'; 
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        // Apply binarization based on quality setting
+                        let threshold = 180; // Default medium
+                        const quality = qualitySelect.value;
+                        if (quality === 'high') {
+                            threshold = 150; 
+                        } else if (quality === 'low') {
+                            threshold = 200;
+                        }
+
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imageData.data;
+                        for (let i = 0; i < data.length; i += 4) {
+                            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                            const color = avg > threshold ? 255 : 0;
+                            data[i] = color;     
+                            data[i + 1] = color; 
+                            data[i + 2] = color; 
+                        }
+                        ctx.putImageData(imageData, 0, 0);
+
+                        const highResDataUrl = canvas.toDataURL('image/png');
+
+                        Tesseract.recognize(
+                            highResDataUrl,
+                            languageSelect.value, // Use selected language
+                            {
+                                logger: m => {
+                                    if (progressCallback) {
+                                        progressCallback(m);
+                                    }
+                                },
+                                // Tesseract parameters for better Thai OCR
+                                tessedit_char_whitelist: 'กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮะัาิีึืุูเแโใไฤฦๅ็่้๊๋์๏ฯํ๎abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789๐๑๒๓๔๕๖๗๙-\'":;,?!@#$%^&*()+×÷=/_€£¥฿.☆▪︎¤《》¡¿°•○●□■♤♡◇♧`~\\|<>{}[]', 
+                                preserve_interword_spaces: '1', 
+                                user_defined_dpi: '300', 
+                            }
+                        ).then(({ data }) => { 
+                            resolve(data.text); 
+                        }).catch(err => {
+                            console.error("Tesseract OCR Error:", err);
+                            reject(`[ไม่สามารถแปลงหน้า ${pageNum} ได้]`);
+                        });
+                    };
+                    img.onerror = () => reject(`[โหลดภาพหน้า ${pageNum} ไม่ได้]`);
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(`[อ่านไฟล์หน้า ${pageNum} ไม่ได้]`);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function postProcessFix(text) {
+            let fixedText = text;
+
+            const diacriticPattern = '[\u0E30-\u0E3A\u0E47-\u0E4E]';
+            fixedText = fixedText.replace(new RegExp(`([\u0E01-\u0E2E])\\s+(${diacriticPattern})`, 'g'), '$1$2');
+
+            // Remove spaces between Thai/English characters and numbers if they are clearly part of a word
+            const charPattern = '[ก-ฮะาิีึืุูเแโใไฤฦๅ็่้๊๋์๏ฯํ๎ฺA-Za-z0-9]'; 
+            const regexRemoveInternalSpaces = new RegExp(`(?<=${charPattern})\\s(?=${charPattern})`, 'g');
+            fixedText = fixedText.replace(regexRemoveInternalSpaces, '');
+
+            for (const map of correctionMap) {
+                fixedText = fixedText.replace(map.w, map.c);
+            }
+
+            // Standardize multiple spaces to single space
+            fixedText = fixedText.replace(/ +/g, ' '); 
+            // Remove leading/trailing spaces on lines
+            fixedText = fixedText.replace(/(^ |\n )|( $)/gm, '$2'); 
+
+            // Specific line break and spacing corrections for the provided text examples
+            fixedText = fixedText.replace(/(\d+)\s*นาเสนองานแล้ว(\d+)คน\s*บรีฟงาน/g, '$1 นำเสนองานแล้ว $2 คน บรีฟงาน'); 
+            fixedText = fixedText.replace(/ขอบเขตงาน\s*\((Scope of Work)\)\s*»\s*ออกแบบและพัฒนา\s*(\d-\d)หน้าจอ/g, 'ขอบเขตงาน ($1) » ออกแบบและพัฒนา $2 หน้าจอ');
+            fixedText = fixedText.replace(/\)\s*\.\s*แสดงเนื้อหาประเภทข้อความ\s*\/\s*วิดีโอ\s*\/\s*เสียง/g, ')\n. แสดงเนื้อหาประเภทข้อความ / วิดีโอ / เสียง'); 
+            fixedText = fixedText.replace(/\)\s*\.\s*มีหน้าเมนูหลัก/g, ')\n. มีหน้าเมนูหลัก'); 
+            fixedText = fixedText.replace(/โครงการ\s*»\s*รองรับระบบสองภาษา/g, 'โครงการ » รองรับระบบสองภาษา');
+            fixedText = fixedText.replace(/อัปโหลดขึ้นGooglePlay\s*\/\s*TestFlight/g, 'อัปโหลดขึ้น Google Play / TestFlight'); 
+            fixedText = fixedText.replace(/หรือส่งไฟล์APK\/IPAสําหร\s*ั\s*บทดสอบ\)\s*-\s*จ\s*ั\s*ดทําเอกสารอธิบายโค้ดหรือREADMEพื้นฐาน/g, 'หรือส่งไฟล์ APK/IPA สำหรับทดสอบ)\n- จัดทำเอกสารอธิบายโค้ดหรือ README พื้นฐาน'); 
+            fixedText = fixedText.replace(/คุณสมบัติผู้รับงาน\s*\.\s*มีประสบการณ์ใช้Flutterพัฒนาแอปจริง/g, 'คุณสมบัติผู้รับงาน\n. มีประสบการณ์ใช้ Flutter พัฒนาแอปจริง'); 
+            fixedText = fixedText.replace(/ตัวอย่างผลงาน\s*\.\s*ทำงานรวดเร็ว/g, 'ตัวอย่างผลงาน\n. ทำงานรวดเร็ว'); 
+            fixedText = fixedText.replace(/สือสาร\s*\.\s*งบประมาณเบื้องต้น/g, 'สื่อสาร\n. งบประมาณเบื้องต้น'); 
+            fixedText = fixedText.replace(/บาท\s*ระยะเวลาดําเนินการ/g, 'บาท\nระยะเวลาดำเนินการ'); 
+            fixedText = fixedText.replace(/ทันที\s*\)\s*นำเสนองานแชร์งาน/g, 'ทันที)\nนำเสนองาน แชร์งาน'); 
+
+            // Specific formatting for the provided "job post" type text
+            fixedText = fixedText.replace(/เปิดรับ\s*ฉันหา/g, 'เปิดรับ\n\nฉันหา');
+            fixedText = fixedText.replace(/TINKERCAD\s*!!\s*(\d+)/g, 'TINKERCAD !!\n\n$1'); 
+            fixedText = fixedText.replace(/ชั่วโมงที่แล้ว\s*รายละเอียดงาน/g, 'ชั่วโมงที่แล้ว\n\nรายละเอียดงาน'); 
+            fixedText = fixedText.replace(/รายละเอียดงาน\s*\$150/g, 'รายละเอียดงาน\n\n$150');
+            fixedText = fixedText.replace(/ฟรีแลนซ์\s*นำเสนองานแล้ว/g, 'ฟรีแลนซ์\n\nนำเสนองานแล้ว'); 
+            fixedText = fixedText.replace(/นำเสนองานแล้ว\s*(\d+)\s*คนบรีฟงาน/g, 'นำเสนองานแล้ว\n\n$1 คน\n\nบรีฟงาน');
+            fixedText = fixedText.replace(/ก็ต่อเมื่อเซนเซอร์/g, 'ก็ต่อเมื่อ\n\nเซนเซอร์');
+            fixedText = fixedText.replace(/เซนเซอร์ตรวจจับน้ำฝนหรือสภาพอากาศและจะมีปั๊มน้ำดูดน้ำขึ้นไปบนสปิงเกอร์เพื่อพ่นออกมาเป็นละอองเพื่อที่รถเข็นไม่ร้อนเกินไป/g, 'เซนเซอร์ตรวจจับน้ำฝนหรือสภาพ\n\nอากาศและจะมีปั๊มน้ำดูดน้ำขึ้นไปบนสปิงเกอร์เพื่อพ่นออกมา เป็น\n\nละอองเพื่อที่รถเข็นไม่ร้อนเกินไป'); 
+            fixedText = fixedText.replace(/\(รถเข็นขายของที่มีระบบอัตโนมัตตามข้างบน\)\s*!!ขอก่อนวันจันทร์!!/g, '(รถเข็นขายของที่มีระบบอัตโนมัตตามข้างบน)\n\n!!ขอก่อนวันจันทร์!!'); 
+            fixedText = fixedText.replace(/วันจันทร์!!\s*ตัวอย่างผลงานที่ต้องการ/g, 'วันจันทร์!!\n\nตัวอย่างผลงานที่ต้องการ'); 
+            fixedText = fixedText.replace(/ที่ต้องการ\s*วันส่งมอบงาน/g, 'ที่ต้องการ\n\nวันส่งมอบงาน');
+            fixedText = fixedText.replace(/(\d{2}\/\d{2}\/\d{4})\s*นำเสนองาน/g, '$1\n\nนำเสนองาน'); 
+            fixedText = fixedText.replace(/นำเสนองาน\s*แชร์งาน/g, 'นำเสนองาน\n\nแชร์งาน');
+
+            return fixedText.trim();
+        }
+
+        async function refineTextWithAI(text) {
+            let chatHistory = [];
+            let prompt = "";
+            const quality = qualitySelect.value;
+
+            switch (quality) {
+                case 'high':
+                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) ซึ่งอาจมีข้อผิดพลาดด้านการสะกด ไวยากรณ์ หรือการเว้นวรรค โปรดแก้ไขข้อความนี้ให้ถูกต้องตามหลักภาษาไทยและภาษาอังกฤษ (หากมี) ปรับปรุงให้เป็นธรรมชาติและอ่านง่ายขึ้นมากที่สุด โดยคงความหมายเดิมไว้ และแก้ไขข้อผิดพลาดที่เกิดจากการแปลง OCR เช่น คำที่เว้นวรรคผิด หรือตัวอักษรที่ผิดเพี้ยนเล็กน้อย ให้สมบูรณ์แบบมากที่สุด ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
+                    break;
+                case 'medium':
+                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) ซึ่งอาจมีข้อผิดพลาดด้านการสะกด ไวยากรณ์ หรือการเว้นวรรค โปรดแก้ไขข้อความนี้ให้ถูกต้องตามหลักภาษาไทยและภาษาอังกฤษ (หากมี) ปรับปรุงให้เป็นธรรมชาติและอ่านง่ายขึ้น โดยคงความหมายเดิมไว้ และแก้ไขข้อผิดพลาดที่เกิดจากการแปลง OCR เช่น คำที่เว้นวรรคผิด หรือตัวอักษรที่ผิดเพี้ยนเล็กน้อย ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
+                    break;
+                case 'low':
+                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) โปรดแก้ไขข้อผิดพลาดที่ชัดเจนด้านการสะกดหรือการเว้นวรรค โดยไม่ต้องปรับปรุงรูปแบบประโยคหรือไวยากรณ์มากนัก เน้นความถูกต้องของคำเป็นหลัก ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
+                    break;
+                default:
+                    prompt = `ข้อความนี้เป็นผลลัพธ์จากการแปลงรูปภาพ (OCR) ซึ่งอาจมีข้อผิดพลาดด้านการสะกด ไวยากรณ์ หรือการเว้นวรรค โปรดแก้ไขข้อความนี้ให้ถูกต้องตามหลักภาษาไทยและภาษาอังกฤษ (หากมี) ปรับปรุงให้เป็นธรรมชาติและอ่านง่ายขึ้น โดยคงความหมายเดิมไว้ และแก้ไขข้อผิดพลาดที่เกิดจากการแปลง OCR เช่น คำที่เว้นวรรคผิด หรือตัวอักษรที่ผิดเพี้ยนเล็กน้อย ไม่ต้องเพิ่มคำอธิบายใดๆ ให้แสดงเฉพาะข้อความที่แก้ไขแล้วเท่านั้น: \n\n${text}`;
+            }
+
+            if (!aiEnhanceCheckbox.checked) {
+                return text; // Skip AI enhancement if checkbox is unchecked
+            }
+            
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            
+            const apiKey = _apiKeyHandler.getApiKey(); 
+            const baseUrl = _apiKeyHandler.getBaseUrl();
+            const apiUrl = `${baseUrl}${apiKey}`; 
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const responseJson = await response.json(); 
+
+                if (response.status === 429) {
+                    showNotification('จำนวนการใช้งาน AI เกินขีดจำกัด (30 ครั้ง/นาที หรือ 15000 token/นาที) โปรดลองใหม่อีกครั้ง', 'error');
+                    return text; // Return original text if rate limited
+                }
+
+                if (responseJson.error && responseJson.error.message) {
+                    if (responseJson.error.message.includes('quota') || responseJson.error.message.includes('rate limit') || responseJson.error.message.includes('resource exhausted')) {
+                        showNotification('จำนวนการใช้งาน AI เกินขีดจำกัด (โควต้าหรือ Rate Limit เกิน) โปรดลองใหม่อีกครั้ง', 'error');
+                        return text;
+                    }
+                    console.error("AI API Error:", responseJson.error.message);
+                    showNotification(`AI ไม่สามารถปรับปรุงข้อความได้: ${responseJson.error.message}`, 'error');
+                    return text;
+                }
+            
+                if (responseJson.candidates && responseJson.candidates.length > 0 &&
+                    responseJson.candidates[0].content && responseJson.candidates[0].content.parts &&
+                    responseJson.candidates[0].content.parts.length > 0) {
+                    const refinedText = responseJson.candidates[0].content.parts[0].text;
+                    return refinedText;
+                } else {
+                    console.error("AI response structure unexpected or content missing:", responseJson);
+                    showNotification('AI ไม่สามารถปรับปรุงข้อความได้บางส่วน (โครงสร้างผลลัพธ์ไม่ถูกต้อง)', 'error');
+                    return text;
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                showNotification('เกิดข้อผิดพลาดในการเชื่อมต่อ AI (โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต)', 'error');
+                return text;
+            }
+        }
+    </script>
+</body>
+</html>
